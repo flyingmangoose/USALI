@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LedgerLeaf — USALI Hotel Financials</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#151b23; --panel2:#1c242e; --line:#2a3340;
+    --ink:#e6edf3; --muted:#8b98a8; --faint:#5d6b7d;
+    --accent:#3b82f6; --accent2:#22d3a6; --warn:#f4b740; --neg:#f47174;
+    --input:#0b2540; --inputtxt:#7ec5ff; --calc:#e6edf3; --link:#5fd0a6;
+    --radius:10px; --shadow:0 1px 0 rgba(255,255,255,.03), 0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+  /* Sidebar */
+  .side{background:linear-gradient(180deg,#10161e,#0c1117);border-right:1px solid var(--line);padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+  .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
+  .brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-weight:800;color:#06121f}
+  .brand b{font-size:16px;letter-spacing:.2px}
+  .brand small{display:block;color:var(--muted);font-size:11px;font-weight:500;margin-top:1px}
+  .navgroup{color:var(--faint);font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;margin:16px 8px 6px}
+  .nav a{display:flex;align-items:center;gap:9px;color:var(--muted);text-decoration:none;padding:8px 10px;border-radius:8px;font-weight:500;cursor:pointer;margin-bottom:1px}
+  .nav a:hover{background:var(--panel2);color:var(--ink)}
+  .nav a.active{background:rgba(59,130,246,.14);color:#cfe4ff;box-shadow:inset 0 0 0 1px rgba(59,130,246,.25)}
+  .nav a .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+  .nav a.active .dot{background:var(--accent)}
+  .nav a.ok .dot{background:var(--accent2)}
+  /* Main */
+  .main{padding:0 0 60px}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(13,17,23,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:14px 30px;display:flex;align-items:center;gap:16px}
+  .topbar h1{font-size:16px;margin:0;font-weight:650}
+  .topbar .crumb{color:var(--faint);font-size:12px}
+  .topbar .spacer{flex:1}
+  .pill{font-size:11.5px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);padding:5px 11px;border-radius:999px}
+  .btn{font:inherit;font-size:12.5px;font-weight:600;color:#06121f;background:linear-gradient(135deg,var(--accent),#60a5fa);border:0;padding:8px 14px;border-radius:8px;cursor:pointer}
+  .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  .wrap{padding:26px 30px;max-width:1180px}
+  .view{display:none;animation:fade .25s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  /* Cards */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:22px;overflow:hidden}
+  .card .head{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .card .head h2{font-size:14.5px;margin:0;font-weight:650}
+  .card .head .sub{color:var(--muted);font-size:12px}
+  .card .body{padding:16px 20px}
+  .tag{font-size:10px;font-weight:700;letter-spacing:.05em;padding:3px 8px;border-radius:6px;text-transform:uppercase}
+  .tag.usali{background:rgba(34,211,166,.13);color:var(--accent2)}
+  /* KPI grid */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin-bottom:8px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+  .kpi.g::after{background:var(--accent2)} .kpi.w::after{background:var(--warn)}
+  .kpi .l{color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .kpi .v{font-size:23px;font-weight:720;margin-top:7px;letter-spacing:-.4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .kpi .d{font-size:11.5px;margin-top:5px;color:var(--faint)}
+  .kpi .d b{color:var(--accent2);font-weight:700} .kpi .d b.dn{color:var(--neg)}
+  /* Tables */
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  .sched th{position:sticky;top:64px;background:var(--panel2);z-index:5}
+  th,td{padding:7px 12px;text-align:right;border-bottom:1px solid rgba(42,51,64,.6)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line)}
+  .grouphdr td{background:var(--panel2);font-weight:700;color:#cdd9e6;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-top:1px solid var(--line)}
+  .section td{font-weight:650;color:#dbe6f2}
+  .ind1{padding-left:26px;color:var(--muted)}
+  .ind2{padding-left:42px;color:var(--muted)}
+  .total td{font-weight:700;border-top:1px solid var(--line);background:rgba(59,130,246,.05)}
+  .grand td{font-weight:800;border-top:2px solid var(--accent);border-bottom:2px solid var(--accent);background:rgba(34,211,166,.07);font-size:14px}
+  .pct{color:var(--faint);font-size:12px;width:62px}
+  /* Inputs */
+  input.cell{width:118px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--inputtxt);font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:5px 8px}
+  input.cell::placeholder{color:#3a4a5e}
+  input.cell:hover{border-color:var(--line)}
+  input.cell:focus{outline:none;border-color:var(--accent);background:var(--input);color:#bfe0ff}
+  td.calc{color:var(--calc);font-weight:600}
+  .neg{color:var(--neg)!important}
+  .legend{display:flex;gap:18px;color:var(--muted);font-size:11.5px;margin:2px 0 4px}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .sw{width:11px;height:11px;border-radius:3px}
+  /* Setup form */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px 26px;max-width:720px}
+  .field label{display:block;color:var(--muted);font-size:12px;font-weight:600;margin-bottom:6px}
+  .field input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--inputtxt);font:inherit;padding:9px 11px}
+  .field input:focus{outline:none;border-color:var(--accent)}
+  .note{color:var(--faint);font-size:12px;line-height:1.6}
+  .bar{height:8px;border-radius:999px;background:var(--panel2);overflow:hidden;margin-top:10px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .flexcards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .mini{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .mini .l{color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .mini .v{font-size:18px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums}
+  canvas{max-width:100%}
+  .banner{background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(34,211,166,.08));border:1px solid rgba(59,130,246,.25);border-radius:12px;padding:14px 18px;margin-bottom:22px;font-size:13px;color:#cfe4ff;display:flex;gap:12px;align-items:flex-start}
+  .banner b{color:#fff}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">L</div>
+      <div><b>LedgerLeaf</b><small>USALI Financials</small></div>
+    </div>
+    <div class="navgroup">Property</div>
+    <nav class="nav" id="nav">
+      <a data-view="setup"><span class="dot"></span>Setup &amp; Assumptions</a>
+      <a data-view="dashboard" class="active"><span class="dot"></span>Dashboard</a>
+    </nav>
+    <div class="navgroup">Operating Departments</div>
+    <nav class="nav">
+      <a data-view="rooms"><span class="dot"></span>Sch 1 · Rooms</a>
+      <a data-view="fb"><span class="dot"></span>Sch 2 · Food &amp; Beverage</a>
+      <a data-view="other"><span class="dot"></span>Sch 3–4 · Other &amp; Misc</a>
+    </nav>
+    <div class="navgroup">Undistributed</div>
+    <nav class="nav">
+      <a data-view="undist"><span class="dot"></span>Sch 5–9 · Overheads</a>
+      <a data-view="fixed"><span class="dot"></span>Sch 10–11 · Fees &amp; Fixed</a>
+    </nav>
+    <div class="navgroup">Reports</div>
+    <nav class="nav">
+      <a data-view="summary"><span class="dot"></span>Summary Op Statement</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <h1 id="ttl">Dashboard</h1>
+      <span class="crumb" id="crumb"></span>
+      <div class="spacer"></div>
+      <span class="pill" id="propPill">Property not set</span>
+      <button class="btn ghost" onclick="loadDemo()">Load demo data</button>
+      <button class="btn" onclick="exportJSON()">Export</button>
+    </div>
+    <div class="wrap">
+
+      <!-- SETUP -->
+      <section class="view" id="v-setup">
+        <div class="card">
+          <div class="head"><h2>Setup &amp; Assumptions</h2><span class="sub">Flows to every schedule header — just like the workbook</span></div>
+          <div class="body">
+            <div class="grid2">
+              <div class="field"><label>Property / Hotel Name</label><input id="f_name" placeholder="Enter property name"></div>
+              <div class="field"><label>Reporting Period</label><input id="f_period" placeholder="e.g. May 2026 / FY2026"></div>
+              <div class="field"><label>Reporting Currency</label><input id="f_ccy" value="USD"></div>
+              <div class="field"><label>Rooms in Inventory</label><input id="f_rooms" type="number" placeholder="120"></div>
+              <div class="field"><label>Days in Period</label><input id="f_days" type="number" placeholder="31"></div>
+              <div class="field"><label>Prepared By</label><input id="f_by" placeholder="Controller"></div>
+            </div>
+            <p class="note" style="margin-top:18px">Rooms Available = Rooms in Inventory × Days in Period. This drives Occupancy, ADR, RevPAR and every per-available-room metric automatically.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- DASHBOARD -->
+      <section class="view active" id="v-dashboard">
+        <div class="banner">
+          <span>📊</span>
+          <div><b>Prototype.</b> This is a working slice of the SaaS concept for independent hotels — the Rooms schedule is ported 1:1 from your USALI workbook formulas; other departments are condensed inputs. Everything below recalculates live as you type, and rolls up to the Summary Operating Statement. Click <b>“Load demo data”</b> to see it populated.</div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><div class="l">Occupancy</div><div class="v" id="k_occ">—</div><div class="d" id="k_occd">rooms sold ÷ available</div></div>
+          <div class="kpi g"><div class="l">ADR</div><div class="v" id="k_adr">—</div><div class="d">average daily rate</div></div>
+          <div class="kpi g"><div class="l">RevPAR</div><div class="v" id="k_revpar">—</div><div class="d">rooms rev ÷ available</div></div>
+          <div class="kpi w"><div class="l">Total RevPAR</div><div class="v" id="k_trevpar">—</div><div class="d">total rev ÷ available</div></div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><div class="l">Total Operating Revenue</div><div class="v" id="k_rev">—</div><div class="d" id="k_revd"></div></div>
+          <div class="kpi g"><div class="l">Gross Operating Profit</div><div class="v" id="k_gop">—</div><div class="d" id="k_gopd">GOP margin</div></div>
+          <div class="kpi w"><div class="l">GOPPAR</div><div class="v" id="k_goppar">—</div><div class="d">GOP per available room</div></div>
+          <div class="kpi g"><div class="l">EBITDA</div><div class="v" id="k_ebitda">—</div><div class="d" id="k_ebitdad">EBITDA margin</div></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Revenue &amp; Profit Flow</h2><span class="sub">Where the money goes — current period</span></div>
+          <div class="body"><canvas id="chart" height="150"></canvas></div>
+        </div>
+        <div class="flexcards">
+          <div class="card" style="margin:0"><div class="head"><h2>Departmental Profit</h2></div><div class="body" id="deptProfit"></div></div>
+          <div class="card" style="margin:0"><div class="head"><h2>Path to EBITDA</h2></div><div class="body" id="waterfall"></div></div>
+        </div>
+      </section>
+
+      <!-- ROOMS (full USALI) -->
+      <section class="view" id="v-rooms">
+        <div class="card">
+          <div class="head">
+            <h2>Rooms — Schedule 1</h2><span class="tag usali">USALI 11th Ed.</span>
+            <span class="sub" id="rooms_sub"></span>
+          </div>
+          <div class="body" style="padding:0">
+            <div style="padding:12px 20px 0"><div class="legend">
+              <span><span class="sw" style="background:var(--input);border:1px solid var(--inputtxt)"></span>Input cells</span>
+              <span><span class="sw" style="background:var(--calc)"></span>Calculated</span>
+              <span>% of Total Rooms Revenue</span>
+            </div></div>
+            <table class="sched" id="roomsTable"></table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Operating Statistics</h2><span class="sub">Drives ADR / RevPAR</span></div>
+          <div class="body">
+            <table id="roomsStats"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Condensed department views share a renderer -->
+      <section class="view" id="v-fb"><div class="card"><div class="head"><h2>Food &amp; Beverage — Schedule 2</h2><span class="sub">Condensed for prototype</span></div><div class="body" style="padding:0"><table id="fbTable"></table></div></div></section>
+      <section class="view" id="v-other"><div class="card"><div class="head"><h2>Other Operated Depts &amp; Misc Income — Sch 3–4</h2></div><div class="body" style="padding:0"><table id="otherTable"></table></div></div></section>
+      <section class="view" id="v-undist"><div class="card"><div class="head"><h2>Undistributed Operating Expenses — Sch 5–9</h2><span class="sub">No revenue — overhead expense only</span></div><div class="body" style="padding:0"><table id="undistTable"></table></div></div></section>
+      <section class="view" id="v-fixed"><div class="card"><div class="head"><h2>Management Fees &amp; Non-Operating — Sch 10–11</h2></div><div class="body" style="padding:0"><table id="fixedTable"></table></div></div></section>
+
+      <!-- SUMMARY -->
+      <section class="view" id="v-summary">
+        <div class="card">
+          <div class="head"><h2>Summary Operating Statement</h2><span class="tag usali">For Operators</span><span class="sub">Bottom line: EBITDA less Replacement Reserve</span></div>
+          <div class="body" style="padding:0"><table id="summaryTable"></table></div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============ STATE ============ */
+const S = {
+  setup:{name:"",period:"",ccy:"USD",rooms:0,days:0,by:""},
+  stats:{sold:0},
+  // Rooms schedule line items (current period actual). Keys match USALI lines.
+  rooms:{
+    retail:0,discount:0,negotiated:0,qualified:0,wholesale:0,
+    corporate:0,assoc:0,govt:0,tour:0,smerf:0,
+    contract:0,other:0,allowances:0,
+    salMgmt:0,salFront:0,salGuest:0,salHK:0,salLaundry:0,salRes:0,salTransport:0,
+    svcCharge:0,contractLabor:0,bonus:0,
+    payTax:0,suppPay:0,benefits:0,
+    cleaning:0,commissions:0,compFB:0,contractSvc:0,guestSupplies:0,laundryDC:0,linen:0,opSupplies:0,reservations:0,training:0,uniforms:0,miscRooms:0
+  },
+  // condensed depts: {rev, labor, other}
+  fb:{rev:0,labor:0,other:0},
+  ood:{rev:0,labor:0,other:0},   // other operated depts (Sch 3)
+  misc:{rev:0},                  // misc income (Sch 4) - pure income
+  ag:{exp:0}, it:{exp:0}, sm:{exp:0}, pom:{exp:0}, util:{exp:0}, // undistributed
+  mgmtFee:{base:0,incentive:0},
+  nonop:{rent:0,tax:0,insurance:0,other:0},
+  reserve:0
+};
+
+/* ============ FORMATTING ============ */
+const ccy = ()=>S.setup.ccy||"USD";
+const sym = ()=>({USD:"$",EUR:"€",GBP:"£",INR:"₹",AED:"AED ",SGD:"S$"}[ccy()]||"");
+function money(n,dec=0){ if(n===0||n===null||isNaN(n)) return "—"; const neg=n<0; const s=sym()+Math.abs(n).toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec}); return neg?"("+s+")":s;}
+function pct(n){ if(!isFinite(n)||n===0) return ""; return (n*100).toFixed(1)+"%";}
+const num = v => { const n=parseFloat((""+v).replace(/[, ]/g,'')); return isNaN(n)?0:n; };
+
+/* ============ ROOMS CALC (ported from workbook formulas) ============ */
+function calcRooms(){
+  const r=S.rooms;
+  const transient = r.retail+r.discount+r.negotiated+r.qualified+r.wholesale;        // B14
+  const group = r.corporate+r.assoc+r.govt+r.tour+r.smerf;                            // B21
+  const totalRev = transient+group+r.contract+r.other-r.allowances;                  // B25
+  const sw = r.salMgmt+r.salFront+r.salGuest+r.salHK+r.salLaundry+r.salRes+r.salTransport; // B38
+  const totalLaborWages = sw+r.svcCharge+r.contractLabor+r.bonus;                     // B42
+  const payroll = r.payTax+r.suppPay+r.benefits;                                      // B47
+  const totalLabor = totalLaborWages+payroll;                                         // B48
+  const otherExp = r.cleaning+r.commissions+r.compFB+r.contractSvc+r.guestSupplies+r.laundryDC+r.linen+r.opSupplies+r.reservations+r.training+r.uniforms+r.miscRooms; // B80
+  const totalExp = totalLabor+otherExp;                                               // B81
+  const profit = totalRev-totalExp;                                                   // B82
+  return {transient,group,totalRev,sw,totalLaborWages,payroll,totalLabor,otherExp,totalExp,profit};
+}
+function deptCalc(d){ const rev=d.rev||0,exp=(d.labor||0)+(d.other||0); return {rev,exp,profit:rev-exp}; }
+
+function calcAll(){
+  const R=calcRooms();
+  const fb=deptCalc(S.fb), ood=deptCalc(S.ood);
+  const miscRev=S.misc.rev||0;
+  const totalRev = R.totalRev+fb.rev+ood.rev+miscRev;
+  const deptExp = R.totalExp+fb.exp+ood.exp;
+  const deptProfit = totalRev-deptExp; // misc income has no dept expense
+  const undist = (S.ag.exp||0)+(S.it.exp||0)+(S.sm.exp||0)+(S.pom.exp||0)+(S.util.exp||0);
+  const gop = deptProfit-undist;
+  const mgmt = (S.mgmtFee.base||0)+(S.mgmtFee.incentive||0);
+  const incomeAfterMgmt = gop-mgmt;
+  const nonop = (S.nonop.rent||0)+(S.nonop.tax||0)+(S.nonop.insurance||0)+(S.nonop.other||0);
+  const ebitda = incomeAfterMgmt-nonop;
+  const ebitdaLessReserve = ebitda-(S.reserve||0);
+  // stats
+  const avail=(S.setup.rooms||0)*(S.setup.days||0);
+  const sold=S.stats.sold||0;
+  const occ= avail? sold/avail : 0;
+  const adr= sold? R.totalRev/sold : 0;
+  const revpar= avail? R.totalRev/avail : 0;
+  const trevpar= avail? totalRev/avail : 0;
+  const goppar= avail? gop/avail : 0;
+  return {R,fb,ood,miscRev,totalRev,deptExp,deptProfit,undist,gop,mgmt,incomeAfterMgmt,nonop,ebitda,ebitdaLessReserve,
+          avail,sold,occ,adr,revpar,trevpar,goppar};
+}
+
+/* ============ RENDERERS ============ */
+function inp(path,key,val){ return `<input class="cell" data-path="${path}" data-key="${key}" value="${val||''}" placeholder="0">`; }
+
+const ROOMS_ROWS = [
+  ['group','Revenue'],
+  ['sec','Transient Rooms Revenue'],
+  ['in','Retail','retail',1],['in','Discount','discount',1],['in','Negotiated','negotiated',1],['in','Qualified','qualified',1],['in','Wholesale','wholesale',1],
+  ['calc','Total Transient Rooms Revenue','transient'],
+  ['sec','Group Rooms Revenue'],
+  ['in','Corporate','corporate',1],['in','Association/Convention','assoc',1],['in','Government','govt',1],['in','Tour/Wholesalers','tour',1],['in','SMERF','smerf',1],
+  ['calc','Total Group Rooms Revenue','group'],
+  ['in','Contract Rooms Revenue','contract',0],['in','Other Rooms Revenue','other',0],['in','Less: Allowances','allowances',0],
+  ['grand','Total Rooms Revenue','totalRev'],
+  ['group','Expenses'],
+  ['sec','Labor — Salaries &amp; Wages'],
+  ['in','Management','salMgmt',1],['in','Front Office','salFront',1],['in','Guest Services','salGuest',1],['in','Housekeeping','salHK',1],['in','Laundry','salLaundry',1],['in','Reservations','salRes',1],['in','Transportation','salTransport',1],
+  ['calc','Sub-Total: Salaries and Wages','sw'],
+  ['in','Service Charge Distribution','svcCharge',0],['in','Contracted/Leased Labor','contractLabor',0],['in','Bonuses and Incentives','bonus',0],
+  ['in','Payroll Taxes','payTax',0],['in','Supplemental Pay','suppPay',0],['in','Employee Benefits','benefits',0],
+  ['calc','Total Labor Costs &amp; Related','totalLabor'],
+  ['sec','Other Expenses'],
+  ['in','Cleaning Supplies','cleaning',1],['in','Commissions','commissions',1],['in','Complimentary F&amp;B','compFB',1],['in','Contract Services','contractSvc',1],['in','Guest Supplies','guestSupplies',1],['in','Laundry &amp; Dry Cleaning','laundryDC',1],['in','Linen','linen',1],['in','Operating Supplies','opSupplies',1],['in','Reservations','reservations',1],['in','Training','training',1],['in','Uniform Costs','uniforms',1],['in','Miscellaneous','miscRooms',1],
+  ['calc','Total Other Expenses','otherExp'],
+  ['calc','Total Expenses','totalExp'],
+  ['grand','Departmental Profit','profit'],
+];
+
+function renderRooms(){
+  const C=calcRooms(); const tot=C.totalRev||0;
+  let h=`<thead><tr><th>Line Item</th><th>Actual</th><th class="pct">% Rev</th></tr></thead><tbody>`;
+  for(const row of ROOMS_ROWS){
+    const t=row[0];
+    if(t==='group'){ h+=`<tr class="grouphdr"><td colspan="3">${row[1]}</td></tr>`; }
+    else if(t==='sec'){ h+=`<tr class="section"><td colspan="3">${row[1]}</td></tr>`; }
+    else if(t==='in'){ const ind=row[3]?'ind2':'ind1'; h+=`<tr><td class="${ind}">${row[1]}</td><td>${inp('rooms',row[2],S.rooms[row[2]]||'')}</td><td class="pct">${tot?pct((S.rooms[row[2]]||0)/tot):''}</td></tr>`; }
+    else { const v=C[row[2]]; const cls=t==='grand'?'grand':'total'; const neg=v<0?'neg':''; h+=`<tr class="${cls}"><td>${row[1]}</td><td class="calc ${neg}">${money(v)}</td><td class="pct">${tot?pct(v/tot):''}</td></tr>`; }
+  }
+  h+=`</tbody>`;
+  document.getElementById('roomsTable').innerHTML=h;
+  // stats table
+  const a=calcAll();
+  document.getElementById('roomsStats').innerHTML=`<tbody>
+    <tr><td>Rooms Available <span class="pct">(inventory × days)</span></td><td class="calc">${(a.avail||0).toLocaleString()||'—'}</td></tr>
+    <tr><td>Rooms Sold</td><td>${inp('stats','sold',S.stats.sold||'')}</td></tr>
+    <tr class="total"><td>Occupancy %</td><td class="calc">${pct(a.occ)||'—'}</td></tr>
+    <tr class="total"><td>ADR</td><td class="calc">${money(a.adr,2)}</td></tr>
+    <tr class="total"><td>RevPAR</td><td class="calc">${money(a.revpar,2)}</td></tr>
+  </tbody>`;
+}
+
+function renderCondensed(tableId,path,lines){
+  const obj=S[path]; let body='';
+  for(const [label,key] of lines){ body+=`<tr><td class="${key==='rev'?'section':'ind1'}">${label}</td><td>${inp(path,key,obj[key]||'')}</td></tr>`; }
+  const c=deptCalc(obj);
+  let foot=`<tr class="grand"><td>Departmental Profit</td><td class="calc ${c.profit<0?'neg':''}">${money(c.profit)}</td></tr>`;
+  document.getElementById(tableId).innerHTML=`<thead><tr><th>Line Item</th><th>Actual</th></tr></thead><tbody>${body}${foot}</tbody>`;
+}
+
+function renderUndist(){
+  const lines=[['Sch 5 · Administrative &amp; General','ag'],['Sch 6 · Information &amp; Telecom','it'],['Sch 7 · Sales &amp; Marketing','sm'],['Sch 8 · Property Operation &amp; Maint.','pom'],['Sch 9 · Utilities','util']];
+  let body='';
+  for(const [label,key] of lines){ body+=`<tr><td class="section">${label}</td><td>${inp(key,'exp',S[key].exp||'')}</td></tr>`; }
+  const tot=(S.ag.exp||0)+(S.it.exp||0)+(S.sm.exp||0)+(S.pom.exp||0)+(S.util.exp||0);
+  body+=`<tr class="grand"><td>Total Undistributed Expenses</td><td class="calc">${money(tot)}</td></tr>`;
+  document.getElementById('undistTable').innerHTML=`<thead><tr><th>Schedule</th><th>Expense</th></tr></thead><tbody>${body}</tbody>`;
+}
+function renderFixed(){
+  let body=`<tr class="grouphdr"><td colspan="2">Sch 10 · Management Fees</td></tr>
+    <tr><td class="ind1">Base Management Fee</td><td>${inp('mgmtFee','base',S.mgmtFee.base||'')}</td></tr>
+    <tr><td class="ind1">Incentive Management Fee</td><td>${inp('mgmtFee','incentive',S.mgmtFee.incentive||'')}</td></tr>
+    <tr class="grouphdr"><td colspan="2">Sch 11 · Non-Operating Income &amp; Expenses</td></tr>
+    <tr><td class="ind1">Rent</td><td>${inp('nonop','rent',S.nonop.rent||'')}</td></tr>
+    <tr><td class="ind1">Property &amp; Other Taxes</td><td>${inp('nonop','tax',S.nonop.tax||'')}</td></tr>
+    <tr><td class="ind1">Insurance</td><td>${inp('nonop','insurance',S.nonop.insurance||'')}</td></tr>
+    <tr><td class="ind1">Other</td><td>${inp('nonop','other',S.nonop.other||'')}</td></tr>
+    <tr class="grouphdr"><td colspan="2">Replacement Reserve</td></tr>
+    <tr><td class="ind1">FF&amp;E Reserve</td><td>${inp('','reserve',S.reserve||'')}</td></tr>`;
+  document.getElementById('fixedTable').innerHTML=`<thead><tr><th>Line Item</th><th>Amount</th></tr></thead><tbody>${body}</tbody>`;
+}
+
+function srow(label,val,cls='',pctv=null,base=null){
+  const neg=(val<0)?'neg':'';
+  const p = (cls==='grand'||cls==='total')&&base ? pct(val/base) : (pctv!=null?pct(pctv):'');
+  return `<tr class="${cls}"><td>${label}</td><td class="calc ${neg}">${money(val)}</td><td class="pct">${p}</td></tr>`;
+}
+function renderSummary(){
+  const a=calcAll(); const tr=a.totalRev||0;
+  let h=`<thead><tr><th>Line Item</th><th>Actual</th><th class="pct">% Rev</th></tr></thead><tbody>`;
+  h+=`<tr class="grouphdr"><td colspan="3">Operating Statistics</td></tr>`;
+  h+=`<tr><td>Rooms Available</td><td class="calc">${(a.avail||0).toLocaleString()||'—'}</td><td></td></tr>`;
+  h+=`<tr><td>Rooms Sold</td><td class="calc">${(a.sold||0).toLocaleString()||'—'}</td><td></td></tr>`;
+  h+=`<tr><td>Occupancy %</td><td class="calc">${pct(a.occ)||'—'}</td><td></td></tr>`;
+  h+=`<tr><td>ADR</td><td class="calc">${money(a.adr,2)}</td><td></td></tr>`;
+  h+=`<tr><td>RevPAR</td><td class="calc">${money(a.revpar,2)}</td><td></td></tr>`;
+  h+=`<tr><td>Total RevPAR</td><td class="calc">${money(a.trevpar,2)}</td><td></td></tr>`;
+  h+=`<tr class="grouphdr"><td colspan="3">Operating Revenue</td></tr>`;
+  h+=`<tr><td class="ind1">Rooms</td><td class="calc">${money(a.R.totalRev)}</td><td class="pct">${tr?pct(a.R.totalRev/tr):''}</td></tr>`;
+  h+=`<tr><td class="ind1">Food &amp; Beverage</td><td class="calc">${money(a.fb.rev)}</td><td class="pct">${tr?pct(a.fb.rev/tr):''}</td></tr>`;
+  h+=`<tr><td class="ind1">Other Operated Departments</td><td class="calc">${money(a.ood.rev)}</td><td class="pct">${tr?pct(a.ood.rev/tr):''}</td></tr>`;
+  h+=`<tr><td class="ind1">Miscellaneous Income</td><td class="calc">${money(a.miscRev)}</td><td class="pct">${tr?pct(a.miscRev/tr):''}</td></tr>`;
+  h+=srow('Total Operating Revenue',a.totalRev,'total',null,tr);
+  h+=`<tr class="grouphdr"><td colspan="3">Departmental Expenses</td></tr>`;
+  h+=`<tr><td class="ind1">Rooms</td><td class="calc">${money(a.R.totalExp)}</td><td class="pct">${tr?pct(a.R.totalExp/tr):''}</td></tr>`;
+  h+=`<tr><td class="ind1">Food &amp; Beverage</td><td class="calc">${money(a.fb.exp)}</td><td class="pct">${tr?pct(a.fb.exp/tr):''}</td></tr>`;
+  h+=`<tr><td class="ind1">Other Operated Departments</td><td class="calc">${money(a.ood.exp)}</td><td class="pct">${tr?pct(a.ood.exp/tr):''}</td></tr>`;
+  h+=srow('Total Departmental Expenses',a.deptExp,'total',null,tr);
+  h+=srow('Total Departmental Profit',a.deptProfit,'grand',null,tr);
+  h+=`<tr class="grouphdr"><td colspan="3">Undistributed Operating Expenses</td></tr>`;
+  h+=`<tr><td class="ind1">Administrative &amp; General</td><td class="calc">${money(S.ag.exp)}</td><td class="pct">${tr?pct((S.ag.exp||0)/tr):''}</td></tr>`;
+  h+=`<tr><td class="ind1">Information &amp; Telecom</td><td class="calc">${money(S.it.exp)}</td><td class="pct">${tr?pct((S.it.exp||0)/tr):''}</td></tr>`;
+  h+=`<tr><td class="ind1">Sales &amp; Marketing</td><td class="calc">${money(S.sm.exp)}</td><td class="pct">${tr?pct((S.sm.exp||0)/tr):''}</td></tr>`;
+  h+=`<tr><td class="ind1">Property Operation &amp; Maintenance</td><td class="calc">${money(S.pom.exp)}</td><td class="pct">${tr?pct((S.pom.exp||0)/tr):''}</td></tr>`;
+  h+=`<tr><td class="ind1">Utilities</td><td class="calc">${money(S.util.exp)}</td><td class="pct">${tr?pct((S.util.exp||0)/tr):''}</td></tr>`;
+  h+=srow('Total Undistributed Expenses',a.undist,'total',null,tr);
+  h+=srow('GROSS OPERATING PROFIT (GOP)',a.gop,'grand',null,tr);
+  h+=`<tr><td>Management Fees</td><td class="calc">${money(a.mgmt)}</td><td class="pct">${tr?pct(a.mgmt/tr):''}</td></tr>`;
+  h+=`<tr><td>Non-Operating Income &amp; Expenses</td><td class="calc">${money(a.nonop)}</td><td class="pct">${tr?pct(a.nonop/tr):''}</td></tr>`;
+  h+=srow('EBITDA',a.ebitda,'grand',null,tr);
+  h+=`<tr><td>Less: Replacement Reserve</td><td class="calc">${money(S.reserve)}</td><td class="pct">${tr?pct((S.reserve||0)/tr):''}</td></tr>`;
+  h+=srow('EBITDA LESS REPLACEMENT RESERVE',a.ebitdaLessReserve,'grand',null,tr);
+  h+=`</tbody>`;
+  document.getElementById('summaryTable').innerHTML=h;
+}
+
+/* ============ DASHBOARD ============ */
+function renderDashboard(){
+  const a=calcAll();
+  document.getElementById('k_occ').textContent=pct(a.occ)||'—';
+  document.getElementById('k_occd').textContent=a.avail?`${(a.sold||0).toLocaleString()} of ${(a.avail).toLocaleString()} room-nights`:'rooms sold ÷ available';
+  document.getElementById('k_adr').textContent=money(a.adr,2);
+  document.getElementById('k_revpar').textContent=money(a.revpar,2);
+  document.getElementById('k_trevpar').textContent=money(a.trevpar,2);
+  document.getElementById('k_rev').textContent=money(a.totalRev);
+  document.getElementById('k_gop').textContent=money(a.gop);
+  document.getElementById('k_gopd').textContent=a.totalRev?`${pct(a.gop/a.totalRev)} GOP margin`:'GOP margin';
+  document.getElementById('k_goppar').textContent=money(a.goppar,2);
+  document.getElementById('k_ebitda').textContent=money(a.ebitda);
+  document.getElementById('k_ebitdad').textContent=a.totalRev?`${pct(a.ebitda/a.totalRev)} EBITDA margin`:'EBITDA margin';
+  // dept profit bars
+  const dp=[['Rooms',a.R.profit],['Food & Beverage',a.fb.profit],['Other Operated',a.ood.profit],['Misc Income',a.miscRev]];
+  const maxd=Math.max(1,...dp.map(d=>Math.abs(d[1])));
+  document.getElementById('deptProfit').innerHTML=dp.map(d=>`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span class="muted">${d[0]}</span><b style="font-variant-numeric:tabular-nums">${money(d[1])}</b></div><div class="bar"><i style="width:${Math.max(2,Math.abs(d[1])/maxd*100)}%;${d[1]<0?'background:linear-gradient(90deg,#f47174,#f4b740)':''}"></i></div></div>`).join('')||'<p class="note">No data yet.</p>';
+  // waterfall
+  const steps=[['Total Revenue',a.totalRev],['– Dept Expenses',-a.deptExp],['– Undistributed',-a.undist],['= GOP',a.gop],['– Mgmt Fees',-a.mgmt],['– Non-Operating',-a.nonop],['= EBITDA',a.ebitda]];
+  document.getElementById('waterfall').innerHTML=`<table style="font-size:12.5px"><tbody>${steps.map(s=>{const em=s[0].startsWith('=');return `<tr class="${em?'total':''}"><td>${s[0]}</td><td class="calc ${s[1]<0?'neg':''}">${money(s[1])}</td></tr>`}).join('')}</tbody></table>`;
+  drawChart(a);
+}
+function drawChart(a){
+  const cv=document.getElementById('chart'); if(!cv) return;
+  const ctx=cv.getContext('2d'); const W=cv.width=cv.clientWidth*2, H=cv.height=300; ctx.scale(1,1);
+  ctx.clearRect(0,0,W,H);
+  const data=[['Rooms Rev',a.R.totalRev,'#3b82f6'],['F&B Rev',a.fb.rev,'#22d3a6'],['Other',a.ood.rev+a.miscRev,'#f4b740'],['GOP',a.gop,'#8b5cf6'],['EBITDA',a.ebitda,'#ec4899']];
+  const max=Math.max(1,...data.map(d=>d[1])); const pad=50,bw=(W-pad*2)/data.length;
+  ctx.font='22px -apple-system,sans-serif';ctx.textAlign='center';
+  data.forEach((d,i)=>{
+    const bh=Math.max(2,(d[1]/max)*(H-90)); const x=pad+i*bw+bw*0.2, y=H-50-bh, w=bw*0.6;
+    const g=ctx.createLinearGradient(0,y,0,H-50); g.addColorStop(0,d[2]); g.addColorStop(1,d[2]+'44');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.roundRect(x,y,w,bh,[6,6,0,0]); ctx.fill();
+    ctx.fillStyle='#8b98a8'; ctx.fillText(d[0],x+w/2,H-22);
+    ctx.fillStyle='#e6edf3'; ctx.font='bold 22px sans-serif'; ctx.fillText(money(d[1]),x+w/2,y-10); ctx.font='22px sans-serif';
+  });
+}
+
+/* ============ RENDER ALL ============ */
+function header(){
+  const sub=`${S.setup.name||'(property)'} · ${S.setup.period||'(period)'}`;
+  document.getElementById('rooms_sub').textContent=sub;
+  document.getElementById('propPill').textContent=S.setup.name?`${S.setup.name} · ${S.setup.period||''}`:'Property not set';
+}
+function renderAll(){
+  header();
+  renderRooms();
+  renderCondensed('fbTable','fb',[['Total F&B Revenue','rev'],['Labor &amp; Related','labor'],['Cost of Sales &amp; Other Expenses','other']]);
+  renderCondensed('otherTable','ood',[['Other Operated Dept Revenue','rev'],['Labor &amp; Related','labor'],['Other Expenses','other']]);
+  // misc income appended to other view
+  document.getElementById('otherTable').insertAdjacentHTML('beforeend',
+    `<tbody><tr class="grouphdr"><td colspan="2">Sch 4 · Miscellaneous Income</td></tr><tr><td class="section">Total Miscellaneous Income</td><td>${inp('misc','rev',S.misc.rev||'')}</td></tr></tbody>`);
+  renderUndist(); renderFixed(); renderSummary();
+  if(document.getElementById('v-dashboard').classList.contains('active')) renderDashboard();
+  bindInputs();
+}
+function bindInputs(){
+  document.querySelectorAll('input.cell').forEach(el=>{
+    el.addEventListener('input',()=>{
+      const p=el.dataset.path,k=el.dataset.key,v=num(el.value);
+      if(p==='') S[k]=v; else S[p][k]=v;
+      // light re-render: recompute everything but keep focus
+      const active=document.activeElement;
+      const id=active?.dataset?.path+'|'+active?.dataset?.key;
+      renderAll();
+      // restore focus
+      if(active?.dataset?.key){const sel=document.querySelector(`input[data-path="${active.dataset.path}"][data-key="${active.dataset.key}"]`); if(sel){sel.focus();sel.setSelectionRange(sel.value.length,sel.value.length);}}
+    });
+  });
+}
+
+/* ============ NAV ============ */
+function show(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('v-'+view).classList.add('active');
+  document.querySelectorAll('#nav a,.nav a').forEach(a=>a.classList.toggle('active',a.dataset.view===view));
+  const titles={setup:'Setup & Assumptions',dashboard:'Dashboard',rooms:'Rooms — Schedule 1',fb:'Food & Beverage — Schedule 2',other:'Other Operated & Misc Income',undist:'Undistributed Operating Expenses',fixed:'Fees & Fixed Charges',summary:'Summary Operating Statement'};
+  document.getElementById('ttl').textContent=titles[view]||view;
+  document.getElementById('crumb').textContent = (S.setup.name?`${S.setup.name} · ${S.setup.period||''}`:'');
+  if(view==='dashboard') renderDashboard();
+}
+document.querySelectorAll('.nav a').forEach(a=>a.addEventListener('click',()=>show(a.dataset.view)));
+
+/* ============ SETUP BINDINGS ============ */
+function bindSetup(){
+  const map={f_name:'name',f_period:'period',f_ccy:'ccy',f_rooms:'rooms',f_by:'by',f_days:'days'};
+  for(const id in map){ const el=document.getElementById(id); el.addEventListener('input',()=>{const k=map[id]; S.setup[k]= (id==='f_rooms'||id==='f_days')?num(el.value):el.value; renderAll();});}
+}
+
+/* ============ DEMO DATA ============ */
+function loadDemo(){
+  S.setup={name:"The Cedarwood Inn",period:"May 2026",ccy:"USD",rooms:84,days:31,by:"A. Verekar"};
+  S.stats.sold=1979; // ~76% occ
+  Object.assign(S.rooms,{
+    retail:268000,discount:31000,negotiated:54000,qualified:22000,wholesale:18000,
+    corporate:41000,assoc:12000,govt:9000,tour:7000,smerf:6000,
+    contract:8000,other:5500,allowances:4200,
+    salMgmt:21000,salFront:18500,salGuest:7400,salHK:26800,salLaundry:5200,salRes:4100,salTransport:2600,
+    svcCharge:0,contractLabor:6200,bonus:3500,
+    payTax:7800,suppPay:2100,benefits:14600,
+    cleaning:5400,commissions:21800,compFB:1800,contractSvc:3900,guestSupplies:9100,laundryDC:2400,linen:3100,opSupplies:6700,reservations:8800,training:1200,uniforms:1500,miscRooms:2600
+  });
+  S.fb={rev:186000,labor:74000,other:62000};
+  S.ood={rev:28000,labor:9000,other:7000};
+  S.misc={rev:14500};
+  S.ag={exp:41000}; S.it={exp:8600}; S.sm={exp:33000}; S.pom={exp:22000}; S.util={exp:19500};
+  S.mgmtFee={base:18000,incentive:0};
+  S.nonop={rent:0,tax:24000,insurance:9500,other:0};
+  S.reserve=24000;
+  // reflect into setup fields
+  f_name.value=S.setup.name;f_period.value=S.setup.period;f_ccy.value=S.setup.ccy;f_rooms.value=S.setup.rooms;f_days.value=S.setup.days;f_by.value=S.setup.by;
+  renderAll(); show('dashboard');
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=(S.setup.name||'property')+'_USALI.json';a.click();URL.revokeObjectURL(u);
+}
+
+/* ============ INIT ============ */
+bindSetup(); renderAll(); show('dashboard');
+</script>
+</body>
+</html>
