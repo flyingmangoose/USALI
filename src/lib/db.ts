@@ -44,6 +44,12 @@ export function db(): Database.Database {
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (property_id, period)
     );
+    CREATE TABLE IF NOT EXISTS mappings (
+      property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+      account TEXT NOT NULL,
+      target TEXT NOT NULL,
+      PRIMARY KEY (property_id, account)
+    );
   `);
   return _db;
 }
@@ -101,4 +107,27 @@ export function upsertPeriod(propertyId: number, period: string, data: PeriodDat
 
 export function deletePeriod(propertyId: number, period: string): void {
   db().prepare('DELETE FROM periods WHERE property_id = ? AND period = ?').run(propertyId, period);
+}
+
+/** Saved trial-balance account → USALI target mappings, keyed by normalized account name. */
+export function getMappings(propertyId: number): Record<string, string> {
+  const rows = db().prepare('SELECT account, target FROM mappings WHERE property_id = ?')
+    .all(propertyId) as { account: string; target: string }[];
+  return Object.fromEntries(rows.map(r => [r.account, r.target]));
+}
+
+/** Upsert mappings; a null/empty target removes the saved mapping for that account. */
+export function saveMappings(propertyId: number, entries: Record<string, string | null>): void {
+  const upsert = db().prepare(`
+    INSERT INTO mappings (property_id, account, target) VALUES (?, ?, ?)
+    ON CONFLICT (property_id, account) DO UPDATE SET target = excluded.target
+  `);
+  const del = db().prepare('DELETE FROM mappings WHERE property_id = ? AND account = ?');
+  const tx = db().transaction(() => {
+    for (const [account, target] of Object.entries(entries)) {
+      if (target) upsert.run(propertyId, account, target);
+      else del.run(propertyId, account);
+    }
+  });
+  tx();
 }

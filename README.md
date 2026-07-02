@@ -34,13 +34,19 @@ override the path.
 - **Summary Operating Statement (Operators view)** — GOP → EBITDA → EBITDA less Replacement Reserve
 - **Dashboard** — Occupancy, ADR, RevPAR, Total RevPAR, GOP, GOPPAR, EBITDA
 - **Trends** — revenue/GOP/EBITDA bars, occupancy line, and a KPI table across all saved months
+- **Trial-balance import** — upload/paste a CSV or tab-separated export (Tally, Zoho Books,
+  Busy, Excel; Dr/Cr columns or single-amount with Dr/Cr suffixes, Indian digit grouping).
+  Ledger accounts are auto-suggested to USALI lines with India-aware heuristics (OTA
+  commissions, PF/ESI, DG diesel…), mappings are saved per property, so the next month's
+  import is one click. See `samples/trial-balance-sample.csv`.
 
 ## Layout
 
 | Path | Description |
 |------|-------------|
 | `src/lib/engine.ts` | USALI calculation engine — pure functions, unit-tested (`engine.test.ts`) |
-| `src/lib/db.ts` | SQLite persistence (properties + monthly period data) |
+| `src/lib/db.ts` | SQLite persistence (properties, monthly period data, account mappings) |
+| `src/lib/importer.ts` | Trial-balance CSV parser, USALI target catalog, mapping heuristics |
 | `src/lib/fiscal.ts` | Period helpers, Indian FY (Apr–Mar) labels |
 | `src/lib/format.ts` | `en-IN` money formatting, lakh/crore compact figures |
 | `src/app/` | Next.js pages + REST API routes |
@@ -51,11 +57,10 @@ override the path.
 
 ## Roadmap (next)
 
-1. CSV / trial-balance import with account mapping
-2. Budget vs. actual and prior-year comparison columns
-3. Full detail for Schedules 2–11 (currently condensed)
-4. Auth + multi-user, PDF/board-pack export, billing
-5. India specifics: GST-aware revenue capture, statutory compliance calendar
+1. Budget vs. actual and prior-year comparison columns
+2. Full detail for Schedules 2–11 (currently condensed)
+3. Auth + multi-user, PDF/board-pack export, billing
+4. India specifics: GST-aware revenue capture, statutory compliance calendar
 
 ## Notes
 

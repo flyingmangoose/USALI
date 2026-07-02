@@ -8,6 +8,7 @@ import DashboardView from './views/DashboardView';
 import RoomsView from './views/RoomsView';
 import { FBView, OtherView, UndistView, FixedView } from './views/CondensedViews';
 import SummaryView from './views/SummaryView';
+import ImportView from './views/ImportView';
 import TrendsView from './views/TrendsView';
 import SettingsView from './views/SettingsView';
 
@@ -23,6 +24,7 @@ const VIEWS = [
   { key: 'other', title: 'Sch 3–4 · Other & Misc', group: 'Operating Departments' },
   { key: 'undist', title: 'Sch 5–9 · Overheads', group: 'Undistributed' },
   { key: 'fixed', title: 'Sch 10–11 · Fees & Fixed', group: 'Undistributed' },
+  { key: 'import', title: 'Import Trial Balance', group: 'Data' },
   { key: 'summary', title: 'Summary Op Statement', group: 'Reports' },
   { key: 'settings', title: 'Property Settings', group: 'Property' },
 ] as const;
@@ -32,7 +34,7 @@ const TITLES: Record<string, string> = {
   rooms: 'Rooms — Schedule 1', fb: 'Food & Beverage — Schedule 2',
   other: 'Other Operated & Misc Income', undist: 'Undistributed Operating Expenses',
   fixed: 'Fees & Fixed Charges', summary: 'Summary Operating Statement',
-  settings: 'Property Settings',
+  import: 'Import Trial Balance', settings: 'Property Settings',
 };
 
 function currentMonth(): string {
@@ -142,7 +144,7 @@ export default function Workspace({ property, initialPeriods }: { property: Prop
           <button className="btn ghost" onClick={addPeriod}>+ Month</button>
         </div>
         <div className="wrap" key={sel /* remount cells on period switch */}>
-          {isEmpty && hasPrev && view !== 'trends' && view !== 'settings' && (
+          {isEmpty && hasPrev && !['trends', 'settings', 'import'].includes(view) && (
             <div className="banner">
               <span>📋</span>
               <div>
@@ -160,6 +162,7 @@ export default function Workspace({ property, initialPeriods }: { property: Prop
           {view === 'other' && <OtherView data={data} ccy={prop.ccy} update={update} />}
           {view === 'undist' && <UndistView data={data} ccy={prop.ccy} update={update} />}
           {view === 'fixed' && <FixedView data={data} ccy={prop.ccy} update={update} />}
+          {view === 'import' && <ImportView prop={prop} period={sel} update={update} onApplied={() => setView('summary')} />}
           {view === 'summary' && <SummaryView totals={totals} data={data} ccy={prop.ccy} />}
           {view === 'settings' && <SettingsView prop={prop} onSaved={setProp} />}
         </div>
