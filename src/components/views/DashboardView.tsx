@@ -5,19 +5,22 @@ import { periodLabel } from '@/lib/fiscal';
 
 function BarChart({ items, ccy }: { items: [string, number, string][]; ccy: string }) {
   const W = 700, H = 260, pad = 40;
-  const max = Math.max(1, ...items.map(d => d[1]));
+  const scale = Math.max(1, ...items.map(d => Math.abs(d[1])));
+  const baseline = H - 45;
   const bw = (W - pad * 2) / items.length;
   return (
     <div className="chartwrap">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%">
+        <line x1={pad} y1={baseline} x2={W - pad} y2={baseline} stroke="#2a3340" strokeWidth="1" />
         {items.map(([label, v, color], i) => {
-          const bh = Math.max(2, (v / max) * (H - 80));
-          const x = pad + i * bw + bw * 0.2, y = H - 45 - bh, w = bw * 0.6;
+          const bh = (Math.abs(v) / scale) * (H - 80);
+          const x = pad + i * bw + bw * 0.2, w = bw * 0.6;
+          const y = v >= 0 ? baseline - bh : baseline;
           return (
             <g key={label}>
-              <rect x={x} y={y} width={w} height={bh} rx="5" fill={color} opacity="0.85" />
+              <rect x={x} y={y} width={w} height={Math.max(2, bh)} rx="5" fill={color} opacity={v < 0 ? 0.55 : 0.85} />
               <text x={x + w / 2} y={H - 24} textAnchor="middle" fontSize="11" fill="#8b98a8">{label}</text>
-              <text x={x + w / 2} y={y - 8} textAnchor="middle" fontSize="11.5" fontWeight="700" fill="#e6edf3">
+              <text x={x + w / 2} y={(v >= 0 ? y : y + bh + 14) - 8} textAnchor="middle" fontSize="11.5" fontWeight="700" fill="#e6edf3">
                 {compact(v, ccy)}
               </text>
             </g>
@@ -28,7 +31,10 @@ function BarChart({ items, ccy }: { items: [string, number, string][]; ccy: stri
   );
 }
 
-export default function DashboardView({ totals: a, ccy, period }: { totals: Totals; ccy: string; period: string }) {
+export default function DashboardView({ totals: a, ccy, period, bench }: {
+  totals: Totals; ccy: string; period: string;
+  bench?: { medianRevpar: number | null; medianGoppar: number | null; medianOcc: number | null } | null;
+}) {
   const dp: [string, number][] = [
     ['Rooms', a.R.profit], ['Food & Beverage', a.fb.profit],
     ['Other Operated', a.ood.profit], ['Misc Income', a.miscRev],
@@ -99,6 +105,30 @@ export default function DashboardView({ totals: a, ccy, period }: { totals: Tota
           </div>
         </div>
       </div>
+      {bench && bench.medianRevpar != null && (bench.medianRevpar > 0 || bench.medianOcc != null) && (() => {
+        const cmp = (cur: number, med: number | null, fmt: (n: number) => string) => {
+          if (med == null || !med) return <span className="note">—</span>;
+          const d = cur - med;
+          const good = d >= 0;
+          return <b style={{ color: good ? 'var(--accent2)' : 'var(--neg)' }}>{fmt(cur)} {good ? '▲' : '▼'} {fmt(med)}</b>;
+        };
+        return (
+          <div className="card">
+            <div className="head"><h2>vs. your portfolio median</h2>
+              <span className="sub">Across this property&apos;s saved months</span></div>
+            <div className="body flush">
+              <table>
+                <thead><tr><th>Metric</th><th>This period</th><th>Portfolio median</th></tr></thead>
+                <tbody>
+                  <tr><td className="section">RevPAR</td><td className="calc">{money(a.revpar, ccy, 0)}</td><td>{cmp(a.revpar, bench.medianRevpar, n => money(n, ccy, 0))}</td></tr>
+                  <tr><td className="section">GOPPAR</td><td className="calc">{money(a.goppar, ccy, 0)}</td><td>{cmp(a.goppar, bench.medianGoppar, n => money(n, ccy, 0))}</td></tr>
+                  <tr><td className="section">Occupancy</td><td className="calc">{pct(a.occ) || '—'}</td><td>{cmp(a.occ, bench.medianOcc, n => pct(n) || '—')}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
     </>
   );
 }

@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMappings, getProperty, saveMappings } from '@/lib/db';
 import { TARGET_PATHS } from '@/lib/importer';
+import { requireAuth } from '@/lib/auth';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, ctx: Ctx) {
+export async function GET(req: NextRequest, ctx: Ctx) {
+  const guard = await requireAuth(req); if (guard) return guard;
   const { id } = await ctx.params;
   if (!getProperty(Number(id))) return NextResponse.json({ error: 'not found' }, { status: 404 });
   return NextResponse.json(getMappings(Number(id)));
 }
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
+  const guard = await requireAuth(req); if (guard) return guard;
   const { id } = await ctx.params;
   if (!getProperty(Number(id))) return NextResponse.json({ error: 'not found' }, { status: 404 });
   const body = await req.json().catch(() => null);

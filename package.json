@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "seed": "tsx scripts/seed.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
@@ -21,6 +23,10 @@
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.3.4",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
     "tsx": "^4.20.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0"

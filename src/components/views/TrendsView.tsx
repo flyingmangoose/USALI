@@ -5,25 +5,27 @@ import { PeriodData, Totals, calcAll } from '@/lib/engine';
 import { comparePeriods, daysInPeriod, fyLabel, periodLabelShort } from '@/lib/fiscal';
 import { compact, money, pct } from '@/lib/format';
 
-function GroupedBars({ months, series, ccy }: {
+function GroupedBars({ months, series }: {
   months: string[];
   series: { name: string; color: string; values: number[] }[];
-  ccy: string;
 }) {
   const W = Math.max(700, months.length * 90), H = 280, pad = 40;
-  const max = Math.max(1, ...series.flatMap(s => s.values));
+  const scale = Math.max(1, ...series.flatMap(s => s.values.map(Math.abs)));
+  const baseline = H - 40;
   const gw = (W - pad * 2) / months.length;
   const bw = (gw * 0.7) / series.length;
   return (
     <div className="chartwrap">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ minWidth: months.length * 70 }}>
+        <line x1={pad} y1={baseline} x2={W - pad} y2={baseline} stroke="#2a3340" strokeWidth="1" />
         {months.map((m, mi) => (
           <g key={m}>
             {series.map((s, si) => {
               const v = s.values[mi];
-              const bh = Math.max(2, (v / max) * (H - 70));
+              const bh = (Math.abs(v) / scale) * (H - 70);
               const x = pad + mi * gw + gw * 0.15 + si * bw;
-              return <rect key={s.name} x={x} y={H - 40 - bh} width={bw - 3} height={bh} rx="3" fill={s.color} opacity="0.85" />;
+              const y = v >= 0 ? baseline - bh : baseline;
+              return <rect key={s.name} x={x} y={y} width={bw - 3} height={Math.max(2, bh)} rx="3" fill={s.color} opacity={v < 0 ? 0.55 : 0.85} />;
             })}
             <text x={pad + mi * gw + gw / 2} y={H - 20} textAnchor="middle" fontSize="11" fill="#8b98a8">
               {periodLabelShort(m)}
@@ -97,7 +99,7 @@ export default function TrendsView({ periods, prop }: { periods: Record<string, 
         <div className="head"><h2>Revenue · GOP · EBITDA by month</h2>
           <span className="sub">{fyLabel(months[0])}{fyLabel(months[0]) !== fyLabel(months[months.length - 1]) ? ` → ${fyLabel(months[months.length - 1])}` : ''}</span></div>
         <div className="body">
-          <GroupedBars months={months} ccy={prop.ccy} series={[
+          <GroupedBars months={months} series={[
             { name: 'Revenue', color: '#3b82f6', values: totals.map(t => t.totalRev) },
             { name: 'GOP', color: '#8b5cf6', values: totals.map(t => t.gop) },
             { name: 'EBITDA', color: '#ec4899', values: totals.map(t => t.ebitda) },

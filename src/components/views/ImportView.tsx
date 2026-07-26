@@ -11,8 +11,8 @@ import type { Updater } from '../Workspace';
 
 const GROUPS = [...new Set(TARGETS.map(t => t.group))];
 
-export default function ImportView({ prop, period, update, onApplied }: {
-  prop: Property; period: string; update: Updater; onApplied: () => void;
+export default function ImportView({ prop, period, update, canEdit = true, onApplied }: {
+  prop: Property; period: string; update: Updater; canEdit?: boolean; onApplied: () => void;
 }) {
   const [text, setText] = useState('');
   const [rows, setRows] = useState<TBRow[] | null>(null);
@@ -67,8 +67,6 @@ export default function ImportView({ prop, period, update, onApplied }: {
     setDone({ mapped: mapped.length, ignored: rows.length - mapped.length });
   }
 
-  const label = (path: string) => TARGETS.find(t => t.path === path)?.label ?? path;
-
   return (
     <>
       <div className="card">
@@ -102,6 +100,9 @@ export default function ImportView({ prop, period, update, onApplied }: {
               {busy ? 'Working…' : 'Parse trial balance'}
             </button>
           </div>
+          {!canEdit && (
+            <p className="note" style={{ color: 'var(--warn)' }}>⚠ This period is locked — unlock it to apply an import.</p>
+          )}
           {warnings.map(w => <p key={w} className="note" style={{ color: 'var(--warn)' }}>⚠ {w}</p>)}
         </div>
       </div>
@@ -145,7 +146,7 @@ export default function ImportView({ prop, period, update, onApplied }: {
               </tbody>
             </table>
             <div style={{ padding: '14px 20px', display: 'flex', gap: 12, alignItems: 'center' }}>
-              <button className="btn" disabled={busy || mapped.length === 0} onClick={apply}>
+              <button className="btn" disabled={busy || mapped.length === 0 || !canEdit} onClick={apply}>
                 Apply {mapped.length} accounts to {periodLabel(period)}
               </button>
               <span className="note">Mapped lines are replaced with the imported totals; everything else is left as-is.</span>

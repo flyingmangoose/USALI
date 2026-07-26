@@ -22,13 +22,30 @@ export interface RoomsData {
   reservations: number; training: number; uniforms: number; miscRooms: number;
 }
 
+/** F&B outlet revenue breakdown (Schedule 2 detail). */
+export interface FBOutlets { restaurant: number; banquet: number; roomService: number; bar: number; other: number }
+/** F&B cost of sales (Schedule 2 detail). */
+export interface FBCost { food: number; beverage: number }
+/** F&B labor detail (Schedule 2). */
+export interface FBLabor { sal: number; svcCharge: number; contractLabor: number; bonus: number; payTax: number; suppPay: number; benefits: number }
+/** F&B other operating expenses detail (Schedule 2). */
+export interface FBOther { cleaning: number; laundry: number; supplies: number; misc: number }
+
+export interface FBData {
+  rev: number; labor: number; other: number;  // Authoritative aggregates used by the roll-up
+  outlets: FBOutlets;   // Revenue by outlet — sums into `rev` when edited in the F&B view
+  cost: FBCost;         // Cost of food / beverage — sums into `other`
+  laborD: FBLabor;      // Labor detail — sums into `labor`
+  otherD: FBOther;      // Other-expense detail — sums into `other`
+}
+
 export interface DeptData { rev: number; labor: number; other: number }
 export interface ExpOnly { exp: number }
 
 export interface PeriodData {
   stats: { sold: number };
   rooms: RoomsData;
-  fb: DeptData;      // Schedule 2
+  fb: FBData;      // Schedule 2
   ood: DeptData;     // Schedule 3 — other operated departments
   misc: { rev: number }; // Schedule 4 — miscellaneous income
   ag: ExpOnly; it: ExpOnly; sm: ExpOnly; pom: ExpOnly; util: ExpOnly; // Sch 5–9
@@ -51,11 +68,21 @@ export function emptyRooms(): RoomsData {
   };
 }
 
+export function emptyFB(): FBData {
+  return {
+    rev: 0, labor: 0, other: 0,
+    outlets: { restaurant: 0, banquet: 0, roomService: 0, bar: 0, other: 0 },
+    cost: { food: 0, beverage: 0 },
+    laborD: { sal: 0, svcCharge: 0, contractLabor: 0, bonus: 0, payTax: 0, suppPay: 0, benefits: 0 },
+    otherD: { cleaning: 0, laundry: 0, supplies: 0, misc: 0 },
+  };
+}
+
 export function emptyPeriodData(): PeriodData {
   return {
     stats: { sold: 0 },
     rooms: emptyRooms(),
-    fb: { rev: 0, labor: 0, other: 0 },
+    fb: emptyFB(),
     ood: { rev: 0, labor: 0, other: 0 },
     misc: { rev: 0 },
     ag: { exp: 0 }, it: { exp: 0 }, sm: { exp: 0 }, pom: { exp: 0 }, util: { exp: 0 },
@@ -65,22 +92,24 @@ export function emptyPeriodData(): PeriodData {
   };
 }
 
-/** Deep-merge stored JSON over an empty skeleton so schema additions never break old rows. */
+/** Deep-merge stored JSON over an empty skeleton so schema additions never break
+ *  old rows. Recurses through nested objects (fb.outlets, fb.cost, …) so partial
+ *  detail never clobbers the zero-filled defaults on the rest of the object. */
+function isPlainObj(x: unknown): x is Record<string, unknown> {
+  return !!x && typeof x === 'object' && !Array.isArray(x);
+}
 export function normalizePeriodData(raw: unknown): PeriodData {
-  const base = emptyPeriodData() as unknown as Record<string, unknown>;
-  if (raw && typeof raw === 'object') {
-    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      if (!(k in base)) continue;
-      if (typeof base[k] === 'object' && base[k] !== null && typeof v === 'object' && v !== null) {
-        Object.assign(base[k] as object, Object.fromEntries(
-          Object.entries(v as Record<string, unknown>).filter(([kk]) => kk in (base[k] as object))
-        ));
-      } else if (typeof base[k] === 'number' && typeof v === 'number') {
-        base[k] = v;
-      }
+  const base = emptyPeriodData();
+  const merge = (target: Record<string, unknown>, src: Record<string, unknown>) => {
+    for (const [k, v] of Object.entries(src)) {
+      if (!(k in target)) continue;
+      const tv = target[k];
+      if (isPlainObj(tv) && isPlainObj(v)) merge(tv as Record<string, unknown>, v);
+      else if (typeof tv === 'number' && typeof v === 'number') target[k] = v;
     }
-  }
-  return base as unknown as PeriodData;
+  };
+  if (isPlainObj(raw)) merge(base as unknown as Record<string, unknown>, raw);
+  return base;
 }
 
 export interface RoomsCalc {
@@ -109,6 +138,28 @@ export function deptCalc(d: DeptData): DeptCalc {
   const rev = d.rev || 0;
   const exp = (d.labor || 0) + (d.other || 0);
   return { rev, exp, profit: rev - exp };
+}
+
+/** Re-aggregate the F&B detail (outlets/cost/labor/other) into rev/labor/other. */
+export function recomputeFBAggregates(fb: FBData): void {
+  const o = fb.outlets || emptyFB().outlets, c = fb.cost || emptyFB().cost;
+  const l = fb.laborD || emptyFB().laborD, od = fb.otherD || emptyFB().otherD;
+  const outletSum = o.restaurant + o.banquet + o.roomService + o.bar + o.other;
+  const laborSum = l.sal + l.svcCharge + l.contractLabor + l.bonus + l.payTax + l.suppPay + l.benefits;
+  const otherSum = c.food + c.beverage + od.cleaning + od.laundry + od.supplies + od.misc;
+  if (outletSum) fb.rev = outletSum;
+  if (laborSum) fb.labor = laborSum;
+  if (otherSum) fb.other = otherSum;
+}
+
+/** Whether any F&B detail has been entered (else the aggregates stand alone). */
+export function fbHasDetail(fb: FBData): boolean {
+  const o = fb.outlets || emptyFB().outlets, c = fb.cost || emptyFB().cost;
+  const l = fb.laborD || emptyFB().laborD, od = fb.otherD || emptyFB().otherD;
+  return !!(o.restaurant || o.banquet || o.roomService || o.bar || o.other
+    || c.food || c.beverage
+    || l.sal || l.svcCharge || l.contractLabor || l.bonus || l.payTax || l.suppPay || l.benefits
+    || od.cleaning || od.laundry || od.supplies || od.misc);
 }
 
 export interface Totals {
@@ -149,4 +200,45 @@ export function calcAll(d: PeriodData, roomsAvailable: number): Totals {
     incomeAfterMgmt, nonop, ebitda, ebitdaLessReserve,
     avail, sold, occ, adr, revpar, trevpar, goppar,
   };
+}
+
+/** Pairwise difference of two Totals — used for budget vs. actual and prior-year variance. */
+export function diffTotals(actual: Totals, baseline: Totals | null | undefined): Partial<Totals> | null {
+  if (!baseline) return null;
+  const out: Record<string, number> = {};
+  for (const k of Object.keys(actual) as (keyof Totals)[]) {
+    const a = actual[k], b = baseline[k];
+    if (typeof a === 'number' && typeof b === 'number') out[k as string] = a - b;
+  }
+  return out as unknown as Partial<Totals>;
+}
+
+/* ---------- GST liability (India) ---------- */
+
+/** Indian GST accommodation slabs by declared tariff (₹/night), keyed by upper bound. */
+export const GST_ROOM_SLABS: { upTo: number; rate: number; label: string }[] = [
+  { upTo: 1000, rate: 0, label: 'Nil (≤ ₹1,000)' },
+  { upTo: 2500, rate: 0.12, label: '12% (₹1,001–2,500)' },
+  { upTo: 7500, rate: 0.18, label: '18% (₹2,501–7,500)' },
+  { upTo: Infinity, rate: 0.28, label: '28% (> ₹7,500)' },
+];
+
+export interface GSTCalc {
+  roomsRate: number; roomsSlab: string; roomsGST: number;
+  fbRate: number; fbGST: number;
+  totalGST: number;
+}
+
+/**
+ * Estimate output GST liability for an Indian hotel. Rooms tax follows the
+ * ADR-based accommodation slab; F&B is taxed at the 5% composition rate typical
+ * for independent hotels. Only meaningful for INR properties.
+ */
+export function gstCalc(roomsRev: number, fbRev: number, adr: number): GSTCalc {
+  const slab = GST_ROOM_SLABS.find(s => adr <= s.upTo) ?? GST_ROOM_SLABS[GST_ROOM_SLABS.length - 1];
+  const roomsRate = slab.rate;
+  const roomsGST = roomsRev * roomsRate;
+  const fbRate = 0.05;
+  const fbGST = fbRev * fbRate;
+  return { roomsRate, roomsSlab: slab.label, roomsGST, fbRate, fbGST, totalGST: roomsGST + fbGST };
 }

@@ -43,11 +43,12 @@ const ROWS: Row[] = [
   ['grand', 'Departmental Profit', 'profit'],
 ];
 
-export default function RoomsView({ data, totals, ccy, update, propName, period }: {
-  data: PeriodData; totals: Totals; ccy: string; update: Updater; propName: string; period: string;
+export default function RoomsView({ data, totals, ccy, update, canEdit = true, propName, period }: {
+  data: PeriodData; totals: Totals; ccy: string; update: Updater; canEdit?: boolean; propName: string; period: string;
 }) {
   const R = totals.R;
   const tot = R.totalRev || 0;
+  const ro = !canEdit;
   return (
     <>
       <div className="card">
@@ -75,7 +76,7 @@ export default function RoomsView({ data, totals, ccy, update, propName, period 
                   return (
                     <tr key={i}>
                       <td className={row[3] ? 'ind2' : 'ind1'}>{row[1]}</td>
-                      <td><Cell value={v} onChange={n => update(d => { d.rooms[key] = n; })} /></td>
+                      <td><Cell value={v} readOnly={ro} onChange={n => update(d => { d.rooms[key] = n; })} /></td>
                       <td className="pct">{tot ? pct(v / tot) : ''}</td>
                     </tr>
                   );
@@ -101,7 +102,7 @@ export default function RoomsView({ data, totals, ccy, update, propName, period 
               <tr><td>Rooms Available <span className="pct">(inventory × days in month)</span></td>
                 <td className="calc">{totals.avail ? totals.avail.toLocaleString('en-IN') : '—'}</td></tr>
               <tr><td>Rooms Sold</td>
-                <td><Cell value={data.stats.sold || 0} onChange={n => update(d => { d.stats.sold = n; })} /></td></tr>
+                <td><Cell value={data.stats.sold || 0} readOnly={ro} onChange={n => update(d => { d.stats.sold = n; })} /></td></tr>
               <tr className="total"><td>Occupancy %</td><td className="calc">{pct(totals.occ) || '—'}</td></tr>
               <tr className="total"><td>ADR</td><td className="calc">{money(totals.adr, ccy, 2)}</td></tr>
               <tr className="total"><td>RevPAR</td><td className="calc">{money(totals.revpar, ccy, 2)}</td></tr>

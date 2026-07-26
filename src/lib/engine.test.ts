@@ -16,7 +16,7 @@ function demoData(): PeriodData {
     cleaning: 5400, commissions: 21800, compFB: 1800, contractSvc: 3900, guestSupplies: 9100,
     laundryDC: 2400, linen: 3100, opSupplies: 6700, reservations: 8800, training: 1200, uniforms: 1500, miscRooms: 2600,
   });
-  d.fb = { rev: 186000, labor: 74000, other: 62000 };
+  Object.assign(d.fb, { rev: 186000, labor: 74000, other: 62000 });
   d.ood = { rev: 28000, labor: 9000, other: 7000 };
   d.misc = { rev: 14500 };
   d.ag = { exp: 41000 }; d.it = { exp: 8600 }; d.sm = { exp: 33000 }; d.pom = { exp: 22000 }; d.util = { exp: 19500 };

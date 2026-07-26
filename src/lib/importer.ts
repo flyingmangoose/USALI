@@ -11,7 +11,9 @@ import { PeriodData } from './engine';
 
 export interface TBRow { account: string; amount: number }
 
-/** Strip currency symbols/grouping; handle (1,234), -1234, and Tally's "1,234.00 Dr / Cr". */
+/** Strip currency symbols/grouping; handle (1,234), -1234, and Tally's "1,234.00 Dr / Cr".
+ *  Currency-agnostic: drops any non-digit/non-sign character (after pulling off
+ *  the Dr/Cr suffix), so ₹/€/£, AED, S$, Rs, etc. all parse. */
 export function parseAmount(s: string): number {
   let t = s.trim();
   if (!t) return 0;
@@ -19,7 +21,8 @@ export function parseAmount(s: string): number {
   if (/^\(.*\)$/.test(t)) { sign = -1; t = t.slice(1, -1); }
   const drcr = t.match(/\b(dr|cr)\.?$/i);
   if (drcr) t = t.slice(0, drcr.index).trim();
-  t = t.replace(/[₹$€£,\s]/g, '');
+  t = t.replace(/[^0-9.\-]/g, '');
+  if (t === '' || t === '-' || t === '.' || t === '-.') return 0;
   const n = parseFloat(t);
   if (isNaN(n)) return 0;
   return sign * n;
