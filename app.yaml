@@ -1,0 +1,35 @@
+# DigitalOcean App Platform spec — LedgerLeaf (USALI financials)
+#
+# This is a server app (Next.js + better-sqlite3), NOT a static site. It must be
+# deployed as a Web Service running `next start`, with a persistent volume for
+# the SQLite database (DO's default filesystem is ephemeral and resets on redeploy).
+#
+# SECURITY: LEDGERLEAF_PASSWORD is declared as a SECRET below — set its real value
+# in the DigitalOcean dashboard (App → Settings → Components → web → Environment
+# Variables) or via `doctl`. Do NOT commit the real password to this (public) repo.
+# When unset, the app runs with auth disabled (open access) — never deploy that way.
+
+name: usali
+region: nyc
+services:
+  - name: web
+    github:
+      repo: flyingmangoose/USALI
+      branch: main
+    source_dir: /
+    environment_slug: node-js
+    build_command: npm run build
+    run_command: npm run start
+    http_port: 3000
+    http_strict_tls: true
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: LEDGERLEAF_DB
+        value: /data/ledgerleaf.db
+      - key: LEDGERLEAF_PASSWORD
+        type: SECRET
+    storage:
+      - name: data
+        mount_path: /data
+        size_mb: 1024
