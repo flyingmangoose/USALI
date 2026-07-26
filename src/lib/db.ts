@@ -318,7 +318,7 @@ export function dailyStatsTotalForPeriod(propertyId: number, period: string): nu
 /** Latest-period KPI row per property, for the portfolio grid. */
 export function listLatestKpis(): { property: Property; kpi: KpiRow | null }[] {
   const rows = db().prepare(`
-    SELECT p.* AS property, k.* AS kpi FROM properties p
+    SELECT p.*, k.* FROM properties p
     LEFT JOIN period_kpis k ON k.property_id = p.id AND k.period = (
       SELECT MAX(period) FROM period_kpis WHERE property_id = p.id
     )
