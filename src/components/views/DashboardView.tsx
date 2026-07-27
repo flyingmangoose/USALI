@@ -11,14 +11,22 @@ function BarChart({ items, ccy }: { items: [string, number, string][]; ccy: stri
   return (
     <div className="chartwrap">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%">
+        <defs>
+          {items.map(([label, , color], i) => (
+            <linearGradient key={label} id={`bar${i}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.95} />
+              <stop offset="100%" stopColor={color} stopOpacity={0.35} />
+            </linearGradient>
+          ))}
+        </defs>
         <line x1={pad} y1={baseline} x2={W - pad} y2={baseline} stroke="#2a3340" strokeWidth="1" />
-        {items.map(([label, v, color], i) => {
+        {items.map(([label, v], i) => {
           const bh = (Math.abs(v) / scale) * (H - 80);
           const x = pad + i * bw + bw * 0.2, w = bw * 0.6;
           const y = v >= 0 ? baseline - bh : baseline;
           return (
             <g key={label}>
-              <rect x={x} y={y} width={w} height={Math.max(2, bh)} rx="5" fill={color} opacity={v < 0 ? 0.55 : 0.85} />
+              <rect x={x} y={y} width={w} height={Math.max(2, bh)} rx="6" fill={`url(#bar${i})`} />
               <text x={x + w / 2} y={H - 24} textAnchor="middle" fontSize="11" fill="#8b98a8">{label}</text>
               <text x={x + w / 2} y={(v >= 0 ? y : y + bh + 14) - 8} textAnchor="middle" fontSize="11.5" fontWeight="700" fill="#e6edf3">
                 {compact(v, ccy)}

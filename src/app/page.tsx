@@ -5,6 +5,7 @@ import { periodLabel } from '@/lib/fiscal';
 import { compact, money, pct } from '@/lib/format';
 import AddProperty from '@/components/AddProperty';
 import SignOut from '@/components/SignOut';
+import LoadDemo from '@/components/LoadDemo';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,7 @@ export default function Home() {
           <h1>Portfolio</h1>
           <span className="crumb">{properties.length} propert{properties.length === 1 ? 'y' : 'ies'}</span>
           <div className="spacer"></div>
+          <LoadDemo className="btn ghost" label="Load demo data" />
           {bench.revpar != null && withKpi.length > 1 && (
             <span className="pill ok">Portfolio median RevPAR {money(bench.revpar, 'INR', 0)} · Occ {pct(bench.occ ?? 0) || '—'}</span>
           )}
@@ -53,9 +55,12 @@ export default function Home() {
           {properties.length === 0 && (
             <div className="banner">
               <span>🏨</span>
-              <div><b>Welcome to LedgerLeaf.</b> Add your first property below, then enter monthly
-              figures in the USALI schedules. Run <code>npm run seed</code> for a demo Indian property
-              with six months of data.</div>
+              <div>
+                <b>Welcome to LedgerLeaf.</b> Add your first property below, then enter monthly
+                figures in the USALI schedules — or{' '}
+                <LoadDemo label="load the demo property" /> to see a 42-room Jaipur hotel with six
+                months of populated USALI reporting.
+              </div>
             </div>
           )}
           <div className="propgrid" style={{ marginBottom: 26 }}>

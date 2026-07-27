@@ -26,18 +26,23 @@ export default function SummaryView({ totals: a, data, ccy, budget: bData, prior
     <tr className={cls}>
       <td className={ind ? 'ind1' : ''}>{label}</td>
       <td className={`calc${v < 0 ? ' neg' : ''}`}>{money(v, ccy, dec)}</td>
-      <td className="calc">{haveB && bv !== undefined ? money(bv, ccy, dec) : '—'}</td>
-      <td className={haveB && bv !== undefined ? varClass(v, bv, good) : 'pct'}>
-        {haveB && bv !== undefined ? money(v - bv, ccy, dec) : ''}
-      </td>
-      <td className="calc">{havePY && pyv !== undefined ? money(pyv, ccy, dec) : '—'}</td>
-      <td className={havePY && pyv ? varClass(v, pyv, good) : 'pct'}>
-        {havePY && pyv ? pct((v - pyv) / pyv) : ''}
-      </td>
+      {haveB && <>
+        <td className="calc">{bv !== undefined ? money(bv, ccy, dec) : '—'}</td>
+        <td className={bv !== undefined ? varClass(v, bv, good) : 'pct'}>
+          {bv !== undefined ? money(v - bv, ccy, dec) : ''}
+        </td>
+      </>}
+      {havePY && <>
+        <td className="calc">{pyv !== undefined ? money(pyv, ccy, dec) : '—'}</td>
+        <td className={pyv ? varClass(v, pyv, good) : 'pct'}>
+          {pyv ? pct((v - pyv) / pyv) : ''}
+        </td>
+      </>}
       <td className="pct">{plain ? '' : P(v)}</td>
     </tr>
   );
-  const Hdr = ({ t }: { t: string }) => <tr className="grouphdr"><td colSpan={7}>{t}</td></tr>;
+  const cols = 2 + (haveB ? 2 : 0) + (havePY ? 2 : 0) + 1;
+  const Hdr = ({ t }: { t: string }) => <tr className="grouphdr"><td colSpan={cols}>{t}</td></tr>;
 
   return (
     <div className="card">
@@ -50,9 +55,8 @@ export default function SummaryView({ totals: a, data, ccy, budget: bData, prior
         <table>
           <thead><tr>
             <th>Line Item</th><th>Actual</th>
-            {haveB ? <th>Budget</th> : <th></th>}
-            {haveB ? <th>Var</th> : <th></th>}
-            <th>PY Actual</th><th>PY Var</th>
+            {haveB && <><th>Budget</th><th>Var</th></>}
+            {havePY && <><th>PY Actual</th><th>PY Var</th></>}
             <th className="pct">% Rev</th>
           </tr></thead>
           <tbody>
